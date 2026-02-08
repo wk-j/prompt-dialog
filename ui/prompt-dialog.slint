@@ -7,17 +7,28 @@ export component PromptDialog inherits Window {
     default-font-family: "mononoki";
     default-font-size: 16px;
 
-    // Total window size includes shadow margins (20px each side)
+    // Total window size includes shadow margins
     width: 680px;
     height: 240px;
 
     // Properties set from Rust
     in property <string> error-text: "";
     in property <bool> connected: false;
+    in property <string> placeholder-hint: "";
+    in property <string> highlight-text: "";
+    in property <string> autocomplete-suggestion: "";
+    in property <bool> autocomplete-visible: false;
+    in-out property <string> input-text <=> input.text;
 
     // Callbacks handled in Rust
     callback submit(string);
     callback dismiss();
+    callback text-changed(string);
+    callback accept-autocomplete();
+    public function move-cursor-to-end() {
+        input.select-all();
+        input.clear-selection();
+    }
 
     // Custom cursor tracking — initialized to TextInput origin (16px, 36px inside body)
     private property <length> cursor-x: 16px;
@@ -54,13 +65,13 @@ export component PromptDialog inherits Window {
         background: #1e1e2ecc;
         clip: true;
 
-        // Connection status dot
+        // Connection status dot (bottom-left)
         Rectangle {
             x: 16px;
-            y: 16px;
-            width: 8px;
-            height: 8px;
-            border-radius: 4px;
+            y: parent.height - 20px;
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
             background: root.connected ? #22c55e : #ef4444;
         }
 
@@ -74,6 +85,17 @@ export component PromptDialog inherits Window {
             color: #64748b;
             horizontal-alignment: right;
             text: Platform.os == OperatingSystemType.macos ? "\u{2318}+Enter to submit" : "Ctrl+Enter to submit";
+        }
+
+        // Available placeholders hint
+        if root.placeholder-hint != "": Text {
+            x: 16px;
+            y: 16px;
+            width: parent.width - 200px;
+            height: 16px;
+            font-size: 11px;
+            color: #7c3aed99;
+            text: root.placeholder-hint;
         }
 
         // Placeholder text (visible when input is empty)
@@ -108,8 +130,17 @@ export component PromptDialog inherits Window {
                 root.cursor-y = self.y + pos.y;
             }
 
-            // Intercept Cmd+Enter (macOS) / Ctrl+Enter (other) to submit
+            edited => {
+                root.text-changed(self.text);
+            }
+
             key-pressed(event) => {
+                // Tab to accept autocomplete
+                if (event.text == Key.Tab && root.autocomplete-visible) {
+                    root.accept-autocomplete();
+                    return accept;
+                }
+                // Cmd+Enter / Ctrl+Enter to submit
                 if (event.text == Key.Return) {
                     if (event.modifiers.meta || event.modifiers.control) {
                         if (self.text != "" && root.connected) {
@@ -118,11 +149,70 @@ export component PromptDialog inherits Window {
                         return accept;
                     }
                 }
+                // Escape to dismiss
                 if (event.text == Key.Escape) {
                     root.dismiss();
                     return accept;
                 }
                 return reject;
+            }
+        }
+
+        // Highlight overlay — renders @tokens in purple on top of normal text
+        // Uses same position, size, font as input but only @token chars are visible
+        // (non-token chars are spaces, so they're invisible)
+        if root.highlight-text != "": Text {
+            x: input.x;
+            y: input.y;
+            width: input.width;
+            height: input.height;
+            font-size: 16px;
+            color: #a78bfa;
+            vertical-alignment: top;
+            wrap: word-wrap;
+            text: root.highlight-text;
+        }
+
+        // Autocomplete suggestion popup
+        if root.autocomplete-visible: Rectangle {
+            x: root.cursor-x;
+            y: root.cursor-y + 24px;
+            width: suggestion-text.preferred-width + tab-hint.preferred-width + 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: #2d2b55ee;
+
+            // Border
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: #7c3aed60;
+                background: transparent;
+            }
+
+            suggestion-text := Text {
+                x: 8px;
+                y: 0px;
+                height: parent.height;
+                font-size: 14px;
+                color: #a78bfa;
+                vertical-alignment: center;
+                text: root.autocomplete-suggestion;
+            }
+
+            // Tab hint — positioned after suggestion text
+            tab-hint := Text {
+                x: suggestion-text.preferred-width + 14px;
+                y: 0px;
+                height: parent.height;
+                font-size: 10px;
+                color: #64748b;
+                vertical-alignment: center;
+                text: "Tab \u{21E5}";
             }
         }
 

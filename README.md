@@ -4,20 +4,65 @@ Frameless, floating prompt dialog for [Claude Code](https://github.com/anomalyco
 
 Dark translucent window with multi-line input, custom underscore cursor, and mononoki font. Sends prompts to a running Claude Code instance via its TUI HTTP API.
 
+## Install
+
+```bash
+cargo install --path .
+```
+
 ## Usage
 
 ```bash
 # Auto-discover running Claude Code server
-cargo run
+prompt-dialog
 
 # Specify port explicitly
-cargo run -- --port 8080
+prompt-dialog --port 8080
+
+# With custom placeholders
+prompt-dialog --param path=/src/main.rs --param lang=rust
 
 # Debug mode
-cargo run -- --debug
+prompt-dialog --debug
 ```
 
-**Cmd+Enter** (macOS) / **Ctrl+Enter** to submit. **Escape** or click outside to dismiss.
+## Keyboard
+
+| Key | Action |
+|-----|--------|
+| **Cmd+Enter** / **Ctrl+Enter** | Submit prompt |
+| **Tab** | Accept autocomplete suggestion |
+| **Escape** | Dismiss dialog |
+
+## Placeholders
+
+Type `@` in your prompt to use placeholders. They expand to real values on submit.
+
+### Autocomplete
+
+Type `@` followed by a partial name to see suggestions. Press **Tab** to accept.
+
+### Built-in tokens
+
+| Token | Description |
+|-------|-------------|
+| `@clipboard` | Current system clipboard text content |
+
+### Custom parameters
+
+Pass `--param key=value` to define custom placeholders:
+
+```bash
+prompt-dialog --param path=/src/main.rs --param lang=rust
+```
+
+Then type:
+
+```
+Fix the bug in @path, it's written in @lang. Here's context: @clipboard
+```
+
+Placeholders are highlighted in purple as you type and expand to actual values on submit.
 
 ## Build
 

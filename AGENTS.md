@@ -47,6 +47,9 @@ cargo run -- --port 8080
 # Run (auto-discover OpenCode server)
 cargo run
 
+# Run with custom placeholders
+cargo run -- --param path=/src/main.rs --param selection="some code"
+
 # Run all tests
 cargo test
 
