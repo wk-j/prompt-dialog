@@ -65,7 +65,29 @@ export component PromptDialog inherits Window {
         background: #1e1e2ecc;
         clip: true;
 
-        // Connection status dot (bottom-left)
+        // Connection status dot (bottom-left) with pulse glow
+        Rectangle {
+            x: 13px;
+            y: parent.height - 23px;
+            width: 12px;
+            height: 12px;
+            border-radius: 6px;
+            background: root.connected ? #22c55e30 : #ef444430;
+
+            // Pulse animation on glow
+            states [
+                bright when root.cursor-visible: {
+                    opacity: 1.0;
+                }
+                dim when !root.cursor-visible: {
+                    opacity: 0.3;
+                }
+            ]
+            animate opacity {
+                duration: 800ms;
+                easing: ease-in-out;
+            }
+        }
         Rectangle {
             x: 16px;
             y: parent.height - 20px;
