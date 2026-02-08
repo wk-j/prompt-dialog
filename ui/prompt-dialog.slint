@@ -1,0 +1,205 @@
+import "./fonts/mononoki-Regular.ttf";
+
+export component PromptDialog inherits Window {
+    no-frame: true;
+    background: transparent;
+    always-on-top: true;
+    default-font-family: "mononoki";
+    default-font-size: 16px;
+
+    // Total window size includes shadow margins (20px each side)
+    width: 680px;
+    height: 240px;
+
+    // Properties set from Rust
+    in property <string> error-text: "";
+    in property <bool> connected: false;
+
+    // Callbacks handled in Rust
+    callback submit(string);
+    callback dismiss();
+
+    // Custom cursor tracking — initialized to TextInput origin (16px, 36px inside body)
+    private property <length> cursor-x: 16px;
+    private property <length> cursor-y: 36px;
+    private property <bool> cursor-visible: true;
+
+    // Shadow layer 1 (outer, subtle)
+    Rectangle {
+        x: 0px;
+        y: 2px;
+        width: parent.width;
+        height: parent.height - 2px;
+        border-radius: 14px;
+        background: #00000018;
+    }
+
+    // Shadow layer 2 (inner, slightly darker)
+    Rectangle {
+        x: 3px;
+        y: 4px;
+        width: parent.width - 6px;
+        height: parent.height - 7px;
+        border-radius: 13px;
+        background: #00000030;
+    }
+
+    // Dialog body — dark semi-transparent background
+    body := Rectangle {
+        x: 6px;
+        y: 6px;
+        width: parent.width - 12px;
+        height: parent.height - 12px;
+        border-radius: 12px;
+        background: #1e1e2ecc;
+        clip: true;
+
+        // Connection status dot
+        Rectangle {
+            x: 16px;
+            y: 16px;
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: root.connected ? #22c55e : #ef4444;
+        }
+
+        // Hint text (Cmd+Enter to submit)
+        Text {
+            x: parent.width - 180px;
+            y: 16px;
+            width: 164px;
+            height: 16px;
+            font-size: 11px;
+            color: #64748b;
+            horizontal-alignment: right;
+            text: Platform.os == OperatingSystemType.macos ? "\u{2318}+Enter to submit" : "Ctrl+Enter to submit";
+        }
+
+        // Placeholder text (visible when input is empty)
+        if input.text == "": Text {
+            x: 16px;
+            y: 36px;
+            width: parent.width - 32px;
+            height: parent.height - 52px;
+            vertical-alignment: top;
+            font-size: 16px;
+            color: #64748b;
+            text: root.connected ? "Type a prompt..." : "No OpenCode server found";
+        }
+
+        // Multi-line text input (native cursor hidden)
+        input := TextInput {
+            x: 16px;
+            y: 36px;
+            width: parent.width - 32px;
+            height: parent.height - 52px;
+            single-line: false;
+            wrap: word-wrap;
+            vertical-alignment: top;
+            font-size: 16px;
+            color: #e2e8f0;
+            selection-background-color: #3b82f680;
+            selection-foreground-color: #f8fafc;
+            text-cursor-width: 0.01px;
+
+            cursor-position-changed(pos) => {
+                root.cursor-x = self.x + pos.x;
+                root.cursor-y = self.y + pos.y;
+            }
+
+            // Intercept Cmd+Enter (macOS) / Ctrl+Enter (other) to submit
+            key-pressed(event) => {
+                if (event.text == Key.Return) {
+                    if (event.modifiers.meta || event.modifiers.control) {
+                        if (self.text != "" && root.connected) {
+                            root.submit(self.text);
+                        }
+                        return accept;
+                    }
+                }
+                if (event.text == Key.Escape) {
+                    root.dismiss();
+                    return accept;
+                }
+                return reject;
+            }
+        }
+
+        // Custom underscore cursor with glow
+        if input.has-focus: Rectangle {
+            x: root.cursor-x;
+            y: root.cursor-y + 20px;
+            width: 11px;
+            height: 3px;
+            border-radius: 1px;
+            background: #7c3aed;
+
+            // Cursor glow effect
+            Rectangle {
+                x: -2px;
+                y: -2px;
+                width: parent.width + 4px;
+                height: parent.height + 4px;
+                border-radius: 3px;
+                background: #7c3aed50;
+            }
+
+            // Blink animation
+            states [
+                on when root.cursor-visible: {
+                    opacity: 1.0;
+                }
+                off when !root.cursor-visible: {
+                    opacity: 0.3;
+                }
+            ]
+
+            animate opacity {
+                duration: 500ms;
+                easing: ease-in-out;
+            }
+        }
+
+        // Error text overlay (shown when there's an error)
+        if root.error-text != "": Rectangle {
+            x: 16px;
+            y: parent.height - 28px;
+            width: parent.width - 32px;
+            height: 20px;
+
+            Text {
+                text: root.error-text;
+                font-size: 11px;
+                color: #ef4444;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // Click on shadow area to dismiss
+    touch := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+
+        clicked => {
+            root.dismiss();
+        }
+    }
+
+    // Cursor blink timer
+    cursor-blink := Timer {
+        interval: 530ms;
+        running: input.has-focus;
+        triggered => {
+            root.cursor-visible = !root.cursor-visible;
+        }
+    }
+
+    // Auto-focus the input on init
+    init => {
+        input.focus();
+    }
+}
