@@ -1,8 +1,8 @@
 # prompt-dialog
 
-Frameless, floating prompt dialog for [Claude Code](https://github.com/anomalyco/Claude). Built with Rust and [Slint](https://slint.dev).
+Frameless, floating prompt dialog for [OpenCode](https://github.com/anomalyco/opencode). Built with Rust and [Slint](https://slint.dev).
 
-Dark translucent window with multi-line input, custom underscore cursor, and mononoki font. Sends prompts to a running Claude Code instance via its TUI HTTP API.
+Dark translucent window with multi-line input, custom underscore cursor, and mononoki font. Sends prompts to a running OpenCode instance via its TUI HTTP API.
 
 ## Install
 
@@ -13,7 +13,7 @@ cargo install --path .
 ## Usage
 
 ```bash
-# Auto-discover running Claude Code server
+# Auto-discover running OpenCode server
 prompt-dialog
 
 # Specify port explicitly
@@ -62,7 +62,7 @@ Then type:
 Fix the bug in @path, it's written in @lang. Here's context: @clipboard
 ```
 
-Placeholders are highlighted in purple as you type and expand to actual values on submit.
+Placeholders are highlighted in purple as you type and expand to actual values on submit to OpenCode.
 
 ## Build
 
