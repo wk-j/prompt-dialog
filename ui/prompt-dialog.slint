@@ -22,7 +22,7 @@ export component PromptDialog inherits Window {
 
     // Callbacks handled in Rust
     callback submit(string);
-    callback dismiss();
+    callback close-window();
     callback text-changed(string);
     callback accept-autocomplete();
     public function move-cursor-to-end() {
@@ -30,274 +30,297 @@ export component PromptDialog inherits Window {
         input.clear-selection();
     }
 
-    // Custom cursor tracking — initialized to TextInput origin (16px, 36px inside body)
+    // Animation state (in-out so Rust can trigger close animation)
+    in-out property <bool> dialog-open: true;
+    in-out property <bool> closing: false;
+
+    // Custom cursor tracking
     private property <length> cursor-x: 16px;
     private property <length> cursor-y: 36px;
     private property <bool> cursor-visible: true;
 
-    // Shadow layer 1 (outer, subtle)
-    Rectangle {
+    // Animated container — everything lives inside this
+    container := Rectangle {
         x: 0px;
-        y: 2px;
+        y: root.dialog-open ? 0px : 8px;
         width: parent.width;
-        height: parent.height - 2px;
-        border-radius: 14px;
-        background: #00000018;
-    }
+        height: parent.height;
+        opacity: root.dialog-open ? 1.0 : 0.0;
 
-    // Shadow layer 2 (inner, slightly darker)
-    Rectangle {
-        x: 3px;
-        y: 4px;
-        width: parent.width - 6px;
-        height: parent.height - 7px;
-        border-radius: 13px;
-        background: #00000030;
-    }
+        animate opacity {
+            duration: 150ms;
+            easing: ease-out;
+        }
+        animate y {
+            duration: 150ms;
+            easing: ease-out;
+        }
 
-    // Dialog body — dark semi-transparent background
-    body := Rectangle {
-        x: 6px;
-        y: 6px;
-        width: parent.width - 12px;
-        height: parent.height - 12px;
-        border-radius: 12px;
-        background: #1e1e2ecc;
-        clip: true;
-
-        // Connection status dot (bottom-left) with pulse glow
+        // Shadow layer 1 (outer, subtle)
         Rectangle {
-            x: 13px;
-            y: parent.height - 23px;
-            width: 12px;
-            height: 12px;
-            border-radius: 6px;
-            background: root.connected ? #22c55e30 : #ef444430;
-
-            // Pulse animation on glow
-            states [
-                bright when root.cursor-visible: {
-                    opacity: 1.0;
-                }
-                dim when !root.cursor-visible: {
-                    opacity: 0.3;
-                }
-            ]
-            animate opacity {
-                duration: 800ms;
-                easing: ease-in-out;
-            }
+            x: 0px;
+            y: 2px;
+            width: parent.width;
+            height: parent.height - 2px;
+            border-radius: 14px;
+            background: #00000018;
         }
+
+        // Shadow layer 2 (inner, slightly darker)
         Rectangle {
-            x: 16px;
-            y: parent.height - 20px;
-            width: 6px;
-            height: 6px;
-            border-radius: 3px;
-            background: root.connected ? #22c55e : #ef4444;
+            x: 3px;
+            y: 4px;
+            width: parent.width - 6px;
+            height: parent.height - 7px;
+            border-radius: 13px;
+            background: #00000030;
         }
 
-        // Hint text (Cmd+Enter to submit)
-        Text {
-            x: parent.width - 180px;
-            y: 16px;
-            width: 164px;
-            height: 16px;
-            font-size: 11px;
-            color: #64748b;
-            horizontal-alignment: right;
-            text: Platform.os == OperatingSystemType.macos ? "\u{2318}+Enter to submit" : "Ctrl+Enter to submit";
-        }
+        // Dialog body — dark semi-transparent background
+        body := Rectangle {
+            x: 6px;
+            y: 6px;
+            width: parent.width - 12px;
+            height: parent.height - 12px;
+            border-radius: 12px;
+            background: #1e1e2ecc;
+            clip: true;
 
-        // Available placeholders hint
-        if root.placeholder-hint != "": Text {
-            x: 16px;
-            y: 16px;
-            width: parent.width - 200px;
-            height: 16px;
-            font-size: 11px;
-            color: #7c3aed99;
-            text: root.placeholder-hint;
-        }
+            // Connection status dot (bottom-left) with pulse glow
+            Rectangle {
+                x: 13px;
+                y: parent.height - 23px;
+                width: 12px;
+                height: 12px;
+                border-radius: 6px;
+                background: root.connected ? #22c55e30 : #ef444430;
 
-        // Placeholder text (visible when input is empty)
-        if input.text == "": Text {
-            x: 16px;
-            y: 36px;
-            width: parent.width - 32px;
-            height: parent.height - 52px;
-            vertical-alignment: top;
-            font-size: 16px;
-            color: #64748b;
-            text: root.connected ? "Type a prompt..." : "No OpenCode server found";
-        }
-
-        // Multi-line text input (native cursor hidden)
-        input := TextInput {
-            x: 16px;
-            y: 36px;
-            width: parent.width - 32px;
-            height: parent.height - 52px;
-            single-line: false;
-            wrap: word-wrap;
-            vertical-alignment: top;
-            font-size: 16px;
-            color: #e2e8f0;
-            selection-background-color: #3b82f680;
-            selection-foreground-color: #f8fafc;
-            text-cursor-width: 0.01px;
-
-            cursor-position-changed(pos) => {
-                root.cursor-x = self.x + pos.x;
-                root.cursor-y = self.y + pos.y;
-            }
-
-            edited => {
-                root.text-changed(self.text);
-            }
-
-            key-pressed(event) => {
-                // Tab to accept autocomplete
-                if (event.text == Key.Tab && root.autocomplete-visible) {
-                    root.accept-autocomplete();
-                    return accept;
+                states [
+                    bright when root.cursor-visible: {
+                        opacity: 1.0;
+                    }
+                    dim when !root.cursor-visible: {
+                        opacity: 0.3;
+                    }
+                ]
+                animate opacity {
+                    duration: 800ms;
+                    easing: ease-in-out;
                 }
-                // Cmd+Enter / Ctrl+Enter to submit
-                if (event.text == Key.Return) {
-                    if (event.modifiers.meta || event.modifiers.control) {
-                        if (self.text != "" && root.connected) {
-                            root.submit(self.text);
+            }
+            Rectangle {
+                x: 16px;
+                y: parent.height - 20px;
+                width: 6px;
+                height: 6px;
+                border-radius: 3px;
+                background: root.connected ? #22c55e : #ef4444;
+            }
+
+            // Hint text (Cmd+Enter to submit)
+            Text {
+                x: parent.width - 180px;
+                y: 16px;
+                width: 164px;
+                height: 16px;
+                font-size: 11px;
+                color: #64748b;
+                horizontal-alignment: right;
+                text: Platform.os == OperatingSystemType.macos ? "\u{2318}+Enter to submit" : "Ctrl+Enter to submit";
+            }
+
+            // Available placeholders hint
+            if root.placeholder-hint != "": Text {
+                x: 16px;
+                y: 16px;
+                width: parent.width - 200px;
+                height: 16px;
+                font-size: 11px;
+                color: #7c3aed99;
+                text: root.placeholder-hint;
+            }
+
+            // Placeholder text (visible when input is empty)
+            if input.text == "": Text {
+                x: 16px;
+                y: 36px;
+                width: parent.width - 32px;
+                height: parent.height - 52px;
+                vertical-alignment: top;
+                font-size: 16px;
+                color: #64748b;
+                text: root.connected ? "Type a prompt..." : "No OpenCode server found";
+            }
+
+            // Multi-line text input (native cursor hidden)
+            input := TextInput {
+                x: 16px;
+                y: 36px;
+                width: parent.width - 32px;
+                height: parent.height - 52px;
+                single-line: false;
+                wrap: word-wrap;
+                vertical-alignment: top;
+                font-size: 16px;
+                color: #e2e8f0;
+                selection-background-color: #3b82f680;
+                selection-foreground-color: #f8fafc;
+                text-cursor-width: 0.01px;
+
+                cursor-position-changed(pos) => {
+                    root.cursor-x = self.x + pos.x;
+                    root.cursor-y = self.y + pos.y;
+                }
+
+                edited => {
+                    root.text-changed(self.text);
+                }
+
+                key-pressed(event) => {
+                    // Tab to accept autocomplete
+                    if (event.text == Key.Tab && root.autocomplete-visible) {
+                        root.accept-autocomplete();
+                        return accept;
+                    }
+                    // Cmd+Enter / Ctrl+Enter to submit
+                    if (event.text == Key.Return) {
+                        if (event.modifiers.meta || event.modifiers.control) {
+                            if (self.text != "" && root.connected) {
+                                root.submit(self.text);
+                            }
+                            return accept;
+                        }
+                    }
+                    // Escape to dismiss
+                    if (event.text == Key.Escape) {
+                        if (!root.closing) {
+                            root.closing = true;
+                            root.dialog-open = false;
+                            close-timer.running = true;
                         }
                         return accept;
                     }
+                    return reject;
                 }
-                // Escape to dismiss
-                if (event.text == Key.Escape) {
-                    root.dismiss();
-                    return accept;
-                }
-                return reject;
-            }
-        }
-
-        // Highlight overlay — renders @tokens in purple on top of normal text
-        // Uses same position, size, font as input but only @token chars are visible
-        // (non-token chars are spaces, so they're invisible)
-        if root.highlight-text != "": Text {
-            x: input.x;
-            y: input.y;
-            width: input.width;
-            height: input.height;
-            font-size: 16px;
-            color: #a78bfa;
-            vertical-alignment: top;
-            wrap: word-wrap;
-            text: root.highlight-text;
-        }
-
-        // Autocomplete suggestion popup
-        if root.autocomplete-visible: Rectangle {
-            x: root.cursor-x;
-            y: root.cursor-y + 24px;
-            width: suggestion-text.preferred-width + tab-hint.preferred-width + 28px;
-            height: 28px;
-            border-radius: 6px;
-            background: #2d2b55ee;
-
-            // Border
-            Rectangle {
-                x: 0px;
-                y: 0px;
-                width: parent.width;
-                height: parent.height;
-                border-radius: 6px;
-                border-width: 1px;
-                border-color: #7c3aed60;
-                background: transparent;
             }
 
-            suggestion-text := Text {
-                x: 8px;
-                y: 0px;
-                height: parent.height;
-                font-size: 14px;
+            // Highlight overlay
+            if root.highlight-text != "": Text {
+                x: input.x;
+                y: input.y;
+                width: input.width;
+                height: input.height;
+                font-size: 16px;
                 color: #a78bfa;
-                vertical-alignment: center;
-                text: root.autocomplete-suggestion;
+                vertical-alignment: top;
+                wrap: word-wrap;
+                text: root.highlight-text;
             }
 
-            // Tab hint — positioned after suggestion text
-            tab-hint := Text {
-                x: suggestion-text.preferred-width + 14px;
-                y: 0px;
-                height: parent.height;
-                font-size: 10px;
-                color: #64748b;
-                vertical-alignment: center;
-                text: "Tab \u{21E5}";
-            }
-        }
+            // Autocomplete suggestion popup
+            if root.autocomplete-visible: Rectangle {
+                x: root.cursor-x;
+                y: root.cursor-y + 24px;
+                width: suggestion-text.preferred-width + tab-hint.preferred-width + 28px;
+                height: 28px;
+                border-radius: 6px;
+                background: #2d2b55ee;
 
-        // Custom underscore cursor with glow
-        if input.has-focus: Rectangle {
-            x: root.cursor-x;
-            y: root.cursor-y + 20px;
-            width: 11px;
-            height: 3px;
-            border-radius: 1px;
-            background: #7c3aed;
-
-            // Cursor glow effect
-            Rectangle {
-                x: -2px;
-                y: -2px;
-                width: parent.width + 4px;
-                height: parent.height + 4px;
-                border-radius: 3px;
-                background: #7c3aed50;
-            }
-
-            // Blink animation
-            states [
-                on when root.cursor-visible: {
-                    opacity: 1.0;
+                Rectangle {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: #7c3aed60;
+                    background: transparent;
                 }
-                off when !root.cursor-visible: {
-                    opacity: 0.3;
+
+                suggestion-text := Text {
+                    x: 8px;
+                    y: 0px;
+                    height: parent.height;
+                    font-size: 14px;
+                    color: #a78bfa;
+                    vertical-alignment: center;
+                    text: root.autocomplete-suggestion;
                 }
-            ]
 
-            animate opacity {
-                duration: 500ms;
-                easing: ease-in-out;
+                tab-hint := Text {
+                    x: suggestion-text.preferred-width + 14px;
+                    y: 0px;
+                    height: parent.height;
+                    font-size: 10px;
+                    color: #64748b;
+                    vertical-alignment: center;
+                    text: "Tab \u{21E5}";
+                }
+            }
+
+            // Custom underscore cursor with glow
+            if input.has-focus: Rectangle {
+                x: root.cursor-x;
+                y: root.cursor-y + 20px;
+                width: 11px;
+                height: 3px;
+                border-radius: 1px;
+                background: #7c3aed;
+
+                Rectangle {
+                    x: -2px;
+                    y: -2px;
+                    width: parent.width + 4px;
+                    height: parent.height + 4px;
+                    border-radius: 3px;
+                    background: #7c3aed50;
+                }
+
+                states [
+                    on when root.cursor-visible: {
+                        opacity: 1.0;
+                    }
+                    off when !root.cursor-visible: {
+                        opacity: 0.3;
+                    }
+                ]
+
+                animate opacity {
+                    duration: 500ms;
+                    easing: ease-in-out;
+                }
+            }
+
+            // Error text overlay
+            if root.error-text != "": Rectangle {
+                x: 16px;
+                y: parent.height - 28px;
+                width: parent.width - 32px;
+                height: 20px;
+
+                Text {
+                    text: root.error-text;
+                    font-size: 11px;
+                    color: #ef4444;
+                    vertical-alignment: center;
+                }
             }
         }
 
-        // Error text overlay (shown when there's an error)
-        if root.error-text != "": Rectangle {
-            x: 16px;
-            y: parent.height - 28px;
-            width: parent.width - 32px;
-            height: 20px;
+        // Click on shadow area to dismiss
+        touch := TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
 
-            Text {
-                text: root.error-text;
-                font-size: 11px;
-                color: #ef4444;
-                vertical-alignment: center;
+            clicked => {
+                if (!root.closing) {
+                    root.closing = true;
+                    root.dialog-open = false;
+                    close-timer.running = true;
+                }
             }
-        }
-    }
-
-    // Click on shadow area to dismiss
-    touch := TouchArea {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-
-        clicked => {
-            root.dismiss();
         }
     }
 
@@ -310,7 +333,16 @@ export component PromptDialog inherits Window {
         }
     }
 
-    // Auto-focus the input on init
+    // Close animation timer — fires after animation completes
+    close-timer := Timer {
+        interval: 180ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            root.close-window();
+        }
+    }
+
     init => {
         input.focus();
     }

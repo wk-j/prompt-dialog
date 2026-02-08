@@ -167,9 +167,11 @@ fn main() -> Result<()> {
                         Ok(()) => {
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(d) = weak.upgrade() {
-                                    let _ = d.hide();
+                                    // Trigger close animation
+                                    d.set_closing(true);
+                                    d.set_dialog_open(false);
+                                    // Timer in Slint will call close-window after animation
                                 }
-                                slint::quit_event_loop().ok();
                             });
                         }
                         Err(e) => {
@@ -186,10 +188,10 @@ fn main() -> Result<()> {
         });
     }
 
-    // Wire up the dismiss callback
+    // Wire up the close-window callback (called after close animation completes)
     {
         let weak = dialog.as_weak();
-        dialog.on_dismiss(move || {
+        dialog.on_close_window(move || {
             if let Some(d) = weak.upgrade() {
                 let _ = d.hide();
             }
