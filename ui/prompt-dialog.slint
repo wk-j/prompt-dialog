@@ -33,6 +33,7 @@ export component PromptDialog inherits Window {
     // Animation state (in-out so Rust can trigger close animation)
     in-out property <bool> dialog-open: true;
     in-out property <bool> closing: false;
+    in-out property <bool> start-close-timer: false;
 
     // Custom cursor tracking
     private property <length> cursor-x: 16px;
@@ -196,7 +197,7 @@ export component PromptDialog inherits Window {
                         if (!root.closing) {
                             root.closing = true;
                             root.dialog-open = false;
-                            close-timer.running = true;
+                            root.start-close-timer = true;
                         }
                         return accept;
                     }
@@ -318,7 +319,7 @@ export component PromptDialog inherits Window {
                 if (!root.closing) {
                     root.closing = true;
                     root.dialog-open = false;
-                    close-timer.running = true;
+                    root.start-close-timer = true;
                 }
             }
         }
@@ -336,7 +337,7 @@ export component PromptDialog inherits Window {
     // Close animation timer — fires after animation completes
     close-timer := Timer {
         interval: 180ms;
-        running: false;
+        running: root.start-close-timer;
         triggered => {
             self.running = false;
             root.close-window();

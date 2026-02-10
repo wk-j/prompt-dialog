@@ -167,10 +167,10 @@ fn main() -> Result<()> {
                         Ok(()) => {
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(d) = weak.upgrade() {
-                                    // Trigger close animation
+                                    // Trigger close animation + start close timer
                                     d.set_closing(true);
                                     d.set_dialog_open(false);
-                                    // Timer in Slint will call close-window after animation
+                                    d.set_start_close_timer(true);
                                 }
                             });
                         }
@@ -196,6 +196,11 @@ fn main() -> Result<()> {
                 let _ = d.hide();
             }
             slint::quit_event_loop().ok();
+
+            // On macOS, the Cocoa NSApplication run loop may not fully terminate
+            // after quit_event_loop(), leaving the process lingering in the Dock
+            // and app switcher. Force-exit to ensure clean teardown.
+            std::process::exit(0);
         });
     }
 
