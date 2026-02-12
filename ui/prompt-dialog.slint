@@ -130,6 +130,20 @@ export component PromptDialog inherits Window {
                 text: Platform.os == OperatingSystemType.macos ? "\u{2318}+Enter to submit" : "Ctrl+Enter to submit";
             }
 
+            // Available placeholders hint glow
+            if root.placeholder-hint != "": Text {
+                x: 16px;
+                y: 16px;
+                width: parent.width - 200px;
+                height: 16px;
+                font-size: 11px;
+                color: #7c3aed25;
+                stroke: #7c3aed18;
+                stroke-width: 3px;
+                stroke-style: outside;
+                text: root.placeholder-hint;
+            }
+
             // Available placeholders hint
             if root.placeholder-hint != "": Text {
                 x: 16px;
@@ -151,6 +165,38 @@ export component PromptDialog inherits Window {
                 font-size: 16px;
                 color: #64748b;
                 text: root.connected ? "Type a prompt..." : "No OpenCode server found";
+            }
+
+            // Glow layer 2 (outermost, most diffuse)
+            if input.text != "": Text {
+                x: input.x;
+                y: input.y;
+                width: input.width;
+                height: input.height;
+                font-size: 16px;
+                color: #7c3aed10;
+                stroke: #7c3aed10;
+                stroke-width: 4px;
+                stroke-style: outside;
+                vertical-alignment: top;
+                wrap: word-wrap;
+                text: root.input-text;
+            }
+
+            // Glow layer 1 (inner, brighter)
+            if input.text != "": Text {
+                x: input.x;
+                y: input.y;
+                width: input.width;
+                height: input.height;
+                font-size: 16px;
+                color: #7c3aed25;
+                stroke: #7c3aed18;
+                stroke-width: 2px;
+                stroke-style: outside;
+                vertical-alignment: top;
+                wrap: word-wrap;
+                text: root.input-text;
             }
 
             // Multi-line text input (native cursor hidden)
@@ -205,6 +251,38 @@ export component PromptDialog inherits Window {
                 }
             }
 
+            // Highlight overlay glow (outer)
+            if root.highlight-text != "": Text {
+                x: input.x;
+                y: input.y;
+                width: input.width;
+                height: input.height;
+                font-size: 16px;
+                color: #a78bfa15;
+                stroke: #a78bfa12;
+                stroke-width: 4px;
+                stroke-style: outside;
+                vertical-alignment: top;
+                wrap: word-wrap;
+                text: root.highlight-text;
+            }
+
+            // Highlight overlay glow (inner)
+            if root.highlight-text != "": Text {
+                x: input.x;
+                y: input.y;
+                width: input.width;
+                height: input.height;
+                font-size: 16px;
+                color: #a78bfa30;
+                stroke: #a78bfa20;
+                stroke-width: 2px;
+                stroke-style: outside;
+                vertical-alignment: top;
+                wrap: word-wrap;
+                text: root.highlight-text;
+            }
+
             // Highlight overlay
             if root.highlight-text != "": Text {
                 x: input.x;
@@ -236,6 +314,20 @@ export component PromptDialog inherits Window {
                     border-width: 1px;
                     border-color: #7c3aed60;
                     background: transparent;
+                }
+
+                // Autocomplete glow layer
+                Text {
+                    x: 8px;
+                    y: 0px;
+                    height: parent.height;
+                    font-size: 14px;
+                    color: #a78bfa30;
+                    stroke: #a78bfa20;
+                    stroke-width: 3px;
+                    stroke-style: outside;
+                    vertical-alignment: center;
+                    text: root.autocomplete-suggestion;
                 }
 
                 suggestion-text := Text {
